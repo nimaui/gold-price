@@ -18,7 +18,12 @@ function renderLive() {
     chg.innerHTML = `<img src="assets/arrow-${x.dir}.svg" alt="" width="9" height="${x.dir === 'down' ? 10 : 11}"><span></span>`;
     chg.lastChild.textContent = x.dp.toFixed(2).replace('.', '/') + '%';
   }
-  $('status').textContent = 'به‌روز شد ' + new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  // Iranian prices only move while the market is open; say so instead of looking frozen.
+  const ts = String(g.t || '');
+  const closed = ts.endsWith('00:00:00');
+  const when = closed ? 'بازار بسته است، آخرین قیمت: ' + new Date(ts.replace(' ', 'T')).toLocaleDateString('fa-IR', { month: 'long', day: 'numeric' })
+    : 'آخرین تغییر قیمت: ' + ts.slice(11, 16);
+  $('status').textContent = when + ' · بررسی ' + new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 }
 
 const hhmm = (ts) => new Date(ts).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });

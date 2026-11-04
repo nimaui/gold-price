@@ -41,26 +41,29 @@ const dayLabel = (ts) => new Date(ts).toLocaleDateString('fa-IR', { month: 'long
 // hero change is (now - first point of the period) / first point.
 const SPAN = { day: 864e5, week: 7 * 864e5, month: 30 * 864e5 };
 const CAPTION = { day: 'تغییرات روزانه', week: 'تغییرات هفتگی', month: 'تغییرات ماهانه', year: 'تغییرات سالانه' };
-let source = 'daily';
+let source = 'daily', partial = false, note = '';
 
 function fromSamples() {
   if (range === 'year' || !samples) return null;
   const src = (range === 'day' ? samples.m5 : samples.h1) || [];
   const rec = src.filter((s) => s[0] > Date.now() - SPAN[range]);
-  const covered = rec.length > 1 && Date.now() - rec[0][0] >= SPAN[range] * 0.85;
-  if (!covered) return null;
+  partial = rec.length > 0 && Date.now() - rec[0][0] < SPAN[range] * 0.85;
+  // day tab: show whatever the last 24h has collected so far (it fills up on its own)
+  if (range === 'day' ? rec.length < 6 : rec.length < 2 || partial) return null;
+  note = range === 'day' && partial ? 'نمودار از ساعت ' + hhmm(rec[0][0]) + ' شروع شده و تا ۲۴ ساعت کامل می‌شود' : '';
   const keep = range === 'day' ? 96 : range === 'week' ? 84 : 120;
   const st = Math.max(1, Math.ceil(rec.length / keep));
   const out = [];
   rec.forEach((s, i) => (i % st === 0 || i === rec.length - 1) &&
-    out.push({ v: s[1], label: (range === 'day' ? '' : dayLabel(s[0]) + ' ') + hhmm(s[0]) }));
+    out.push({ v: s[1], label: (range === 'day' && new Date(s[0]).getDate() === new Date().getDate() ? '' : dayLabel(s[0]) + ' ') + hhmm(s[0]) }));
   return out;
 }
 
 // [{v: price, label: text shown in the tooltip}], oldest first
 function series() {
+  note = '';
   const s = fromSamples();
-  if (s) { source = 'samples'; return s; }
+  if (s) { source = partial ? 'daily' : 'samples'; return s; }
   source = 'daily';
   const out = [];
   if (hist) {
@@ -103,6 +106,7 @@ function renderChart() {
   const pts = series();
   if (pts.length < 2) return;
   renderHero(pts);
+  $('note').textContent = note;
   const W = 434, H = 134, top = 45, bot = H - 5;
   const vs = pts.map((p) => p.v), lo = Math.min(...vs), hi = Math.max(...vs), span = hi - lo || 1;
   const prevYs = cur && cur.ys;

@@ -10,7 +10,8 @@
 <meta name="apple-mobile-web-app-title" content="قیمت طلا">
 <title>قیمت طلا</title>
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icons/icon-192.png">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="icon" type="image/png" sizes="48x48" href="icons/favicon-48.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="preload" href="fonts/IRANSansXFaNum-Regular.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="style.css">
@@ -64,6 +65,11 @@
       <span class="val"><b>—</b><i>تومانء</i></span>
       <span class="chg"></span>
     </div>
+    <button class="row folio" id="folio-open" type="button" aria-haspopup="dialog">
+      <span class="name">سبد من</span>
+      <span class="val"><b id="folio-val">—</b><i id="folio-unit"></i></span>
+      <span class="chg" id="folio-pl"></span>
+    </button>
   </section>
   <p class="status" id="status" role="status"></p>
 </main>
@@ -154,6 +160,27 @@
 
   <button class="btn" id="test-notif" type="button" data-needs="notif">ارسال اعلان آزمایشی</button>
   <button class="btn ghost" id="close-settings" type="button">بستن</button>
+</aside>
+
+<aside class="sheet" id="folio-sheet" aria-hidden="true" aria-labelledby="folio-title">
+  <div class="grab"></div>
+  <h2 id="folio-title">سبد من</h2>
+  <p class="hint">فقط روی همین گوشی ذخیره می‌شود و جایی فرستاده نمی‌شود.</p>
+  <ul class="holdings" id="holdings"></ul>
+  <div class="field">
+    <div class="field-head"><span>افزودن دارایی</span></div>
+    <select id="f-asset" aria-label="نوع دارایی">
+      <option value="gold">طلا ۱۸ عیار (گرم)</option>
+      <option value="sekee">سکه امامی (عدد)</option>
+      <option value="usd">دلار</option>
+    </select>
+    <div class="target-row">
+      <input id="f-amount" inputmode="decimal" autocomplete="off" placeholder="مقدار" aria-label="مقدار">
+      <input id="f-buy" inputmode="numeric" autocomplete="off" placeholder="قیمت خرید هر واحد (تومان)" aria-label="قیمت خرید">
+    </div>
+    <button class="btn" id="f-add" type="button" style="margin-top:0">افزودن به سبد</button>
+  </div>
+  <button class="btn ghost" id="folio-close" type="button">بستن</button>
 </aside>
 
 <script src="vendor/gsap.min.js"></script>

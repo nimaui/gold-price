@@ -26,6 +26,7 @@ function renderLive() {
     chg.lastChild.textContent = x.dp.toFixed(2).replace('.', '/') + '%';
   }
   renderHero(series());
+  renderFolio();
   // Iranian prices only move while the market is open; say so instead of looking frozen.
   const ts = String(g.t || '');
   const closed = ts.endsWith('00:00:00');
@@ -376,6 +377,85 @@ async function bindSettings() {
     Gold.notify(reg, 'قیمت طلا', `هر گرم ۱۸ عیار: ${fa(group(l.gram18.p))} تومان`, 'gold-test');
   };
 }
+
+
+/* ---------- portfolio (stored only on this phone) ---------- */
+const ASSETS = {
+  gold: { name: 'طلا ۱۸ عیار', unit: 'گرم', price: () => live.gram18.p },
+  sekee: { name: 'سکه امامی', unit: 'عدد', price: () => live.sekee.p },
+  usd: { name: 'دلار', unit: 'دلار', price: () => live.usd.p },
+};
+let folio = [];
+try { folio = JSON.parse(localStorage.getItem('folio') || '[]'); } catch {}
+const saveFolio = () => { try { localStorage.setItem('folio', JSON.stringify(folio)); } catch {} };
+const parseNum = (v) => parseFloat(String(v)
+  .replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)).replace(/[٠-٩]/g, (d) => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
+  .replace(/[٫\/]/g, '.').replace(/[,٬\s]/g, '')) || 0;
+const pctFa = (n) => n.toFixed(2).replace('.', '/') + '%';
+const signed = (n) => (n < 0 ? '−' : '+') + group(Math.abs(Math.round(n)));
+
+function folioStats() {
+  let value = 0, cost = 0;
+  for (const h of folio) {
+    const a = ASSETS[h.asset]; if (!a || !live) continue;
+    value += h.amount * a.price(); cost += h.amount * h.buy;
+  }
+  return { value, cost, pl: value - cost, pct: cost ? ((value - cost) / cost) * 100 : 0 };
+}
+
+function renderFolio() {
+  const val = $('folio-val'), pl = $('folio-pl');
+  if (!folio.length || !live) {
+    val.textContent = folio.length ? '—' : 'افزودن دارایی'; $('folio-unit').textContent = '';
+    pl.textContent = ''; pl.className = 'chg'; shown.folio = null;
+  } else {
+    const st = folioStats();
+    countTo(val, 'folio', Math.round(st.value));
+    $('folio-unit').textContent = 'تومانء';
+    const down = st.pl < 0;
+    pl.className = 'chg' + (down ? ' down' : '');
+    pl.innerHTML = `<img src="assets/arrow-${down ? 'down' : 'up'}.svg" alt="" width="9" height="${down ? 10 : 11}"><span></span>`;
+    pl.lastChild.textContent = pctFa(Math.abs(st.pct));
+  }
+  const ul = $('holdings'); if (!ul) return;
+  ul.innerHTML = '';
+  for (const h of folio) {
+    const a = ASSETS[h.asset]; if (!a) continue;
+    const now = live ? a.price() : 0, pl = (now - h.buy) * h.amount, down = pl < 0;
+    const li = document.createElement('li');
+    li.innerHTML = '<span class="t"></span><button type="button" aria-label="حذف"></button><span class="s"></span><span class="pl"></span>';
+    li.querySelector('.t').textContent = `${a.name} · ${String(h.amount).replace('.', '/')} ${a.unit}`;
+    li.querySelector('.s').textContent = live ? `ارزش: ${group(Math.round(now * h.amount))} تومان` : '';
+    const p = li.querySelector('.pl'); p.classList.toggle('down', down);
+    p.textContent = live ? `${signed(pl)} تومان  ${pctFa(Math.abs(((now - h.buy) / h.buy) * 100))}` : '';
+    const del = li.querySelector('button'); del.textContent = '×';
+    del.onclick = () => { folio = folio.filter((x) => x.id !== h.id); saveFolio(); renderFolio(); };
+    ul.append(li);
+  }
+}
+
+function openFolio(open) {
+  $('folio-sheet').classList.toggle('open', open);
+  $('folio-sheet').setAttribute('aria-hidden', String(!open));
+  $('scrim').hidden = !open;
+  if (open) { renderFolio(); $('folio-close').focus(); } else $('folio-open').focus();
+}
+$('folio-open').onclick = () => openFolio(true);
+$('folio-close').onclick = () => openFolio(false);
+$('scrim').addEventListener('click', () => openFolio(false));
+addEventListener('keydown', (e) => e.key === 'Escape' && openFolio(false));
+$('f-buy').onfocus = () => { // suggest today's price as the buy price
+  const a = ASSETS[$('f-asset').value];
+  if (live && !$('f-buy').value) $('f-buy').placeholder = group(Math.round(a.price()));
+};
+$('f-add').onclick = () => {
+  const amount = parseNum($('f-amount').value), buy = parseNum($('f-buy').value);
+  if (!(amount > 0)) { $('f-amount').focus(); return; }
+  if (!(buy > 0)) { $('f-buy').focus(); return; }
+  folio.push({ id: Date.now().toString(36), asset: $('f-asset').value, amount, buy });
+  $('f-amount').value = ''; $('f-buy').value = '';
+  saveFolio(); renderFolio();
+};
 
 /* ---------- boot ---------- */
 function movePill(animate) {

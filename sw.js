@@ -1,9 +1,9 @@
 importScripts('shared.js');
 
-const VERSION = 'gold-v12';
+const VERSION = 'gold-v13';
 const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'shared.js', 'vendor/gsap.min.js', 'manifest.webmanifest',
   'fonts/IRANSansXFaNum-Regular.woff2', 'fonts/IRANSansXFaNum-Medium.woff2',
-  'assets/trend-up.svg', 'assets/arrow-up.svg', 'assets/arrow-down.svg', 'icons/icon-192.png'];
+  'assets/trend-up.svg', 'assets/arrow-up.svg', 'assets/arrow-down.svg', 'icons/icon-192.png', 'favicon.svg'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(VERSION).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));

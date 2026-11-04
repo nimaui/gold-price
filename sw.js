@@ -1,6 +1,6 @@
 importScripts('shared.js');
 
-const VERSION = 'gold-v11';
+const VERSION = 'gold-v12';
 const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'shared.js', 'vendor/gsap.min.js', 'manifest.webmanifest',
   'fonts/IRANSansXFaNum-Regular.woff2', 'fonts/IRANSansXFaNum-Medium.woff2',
   'assets/trend-up.svg', 'assets/arrow-up.svg', 'assets/arrow-down.svg', 'icons/icon-192.png'];

@@ -87,6 +87,26 @@ function renderHero(pts) {
   document.querySelector('#hero-change .cap').textContent = CAPTION[range];
 }
 
+// Monotone cubic curve: rounds every corner without overshooting the data.
+function curve(xy) {
+  const n = xy.length, f = (v) => v.toFixed(1);
+  if (n < 3) return xy.map((p, i) => (i ? 'L' : 'M') + f(p[0]) + ' ' + f(p[1])).join('');
+  const dx = [], m = [], t = new Array(n);
+  for (let i = 0; i < n - 1; i++) { dx[i] = xy[i + 1][0] - xy[i][0]; m[i] = (xy[i + 1][1] - xy[i][1]) / dx[i]; }
+  t[0] = m[0]; t[n - 1] = m[n - 2];
+  for (let i = 1; i < n - 1; i++) t[i] = m[i - 1] * m[i] <= 0 ? 0 : (m[i - 1] + m[i]) / 2;
+  for (let i = 0; i < n - 1; i++) {
+    if (m[i] === 0) { t[i] = t[i + 1] = 0; continue; }
+    const a = t[i] / m[i], b = t[i + 1] / m[i], q = a * a + b * b;
+    if (q > 9) { const k = 3 / Math.sqrt(q); t[i] = k * a * m[i]; t[i + 1] = k * b * m[i]; }
+  }
+  let d = 'M' + f(xy[0][0]) + ' ' + f(xy[0][1]);
+  for (let i = 0; i < n - 1; i++) {
+    const h = dx[i] / 3;
+    d += `C${f(xy[i][0] + h)} ${f(xy[i][1] + t[i] * h)} ${f(xy[i + 1][0] - h)} ${f(xy[i + 1][1] - t[i + 1] * h)} ${f(xy[i + 1][0])} ${f(xy[i + 1][1])}`;
+  }
+  return d;
+}
 const M = 80;
 const resample = (a) => Array.from({ length: M }, (_, i) => {
   const pos = (i * (a.length - 1)) / (M - 1), k = Math.floor(pos), f = pos - k;
@@ -110,8 +130,10 @@ function renderChart() {
   const W = 434, H = 134, top = 45, bot = H - 5;
   const vs = pts.map((p) => p.v), lo = Math.min(...vs), hi = Math.max(...vs), span = hi - lo || 1;
   const prevYs = cur && cur.ys;
-  const xy = vs.map((v, i) => [(i / (pts.length - 1)) * W, bot - ((v - lo) / span) * (bot - top)]);
-  const line = xy.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join('');
+  // light 3-point smoothing on long series so tiny ticks don't read as spikes
+  const sm = vs.length > 30 ? vs.map((v, i) => (i && i < vs.length - 1 ? (vs[i - 1] + 2 * v + vs[i + 1]) / 4 : v)) : vs;
+  const xy = sm.map((v, i) => [(i / (pts.length - 1)) * W, bot - ((v - lo) / span) * (bot - top)]);
+  const line = curve(xy);
   $('chart').innerHTML =
     `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
       <defs><linearGradient id="g" x1="0" y1="${top}" x2="0" y2="${H}" gradientUnits="userSpaceOnUse">
@@ -129,7 +151,7 @@ function renderChart() {
     const [areaEl, lineEl] = $('chart').querySelectorAll('svg path');
     const a = resample(prevYs), b = resample(cur.ys), o = { p: 0 };
     const draw = (ys) => {
-      const d = ys.map((y, i) => (i ? 'L' : 'M') + ((i / (M - 1)) * W).toFixed(1) + ' ' + y.toFixed(1)).join('');
+      const d = curve(ys.map((y, i) => [(i / (M - 1)) * W, y]));
       lineEl.setAttribute('d', d); areaEl.setAttribute('d', d + `L${W} ${H}L0 ${H}Z`);
     };
     draw(a);

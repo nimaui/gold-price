@@ -6,11 +6,11 @@ let live = null, hist = null, samples = null, range = 'day', settings = null, re
 /* ---------- rendering ---------- */
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 let shown = {};
-function countTo(el, key, to) {
+function countTo(el, key, to, fa_) {
   const from = shown[key]; shown[key] = to;
   if (reduce || !window.gsap || from == null || from === to) { el.textContent = group(to); return; }
   const o = { v: from };
-  gsap.killTweensOf(o);
+  gsap.fromTo(el, { color: to > from ? '#039874' : '#f65555' }, { color: '#252525', duration: 1.4, ease: 'power1.out', clearProps: 'color' });
   gsap.to(o, { v: to, duration: 0.8, ease: 'power2.out', onUpdate: () => (el.textContent = group(Math.round(o.v))) });
 }
 
@@ -19,7 +19,7 @@ function renderLive() {
   countTo($('price'), 'g18', g.p);
   for (const key of ['ons', 'sekee', 'usd']) {
     const row = document.querySelector(`.row[data-key=${key}]`), x = live[key];
-    row.querySelector('b').textContent = group(x.p);
+    countTo(row.querySelector('b'), key, x.p, true);
     const chg = row.querySelector('.chg');
     chg.classList.toggle('down', x.dir === 'down');
     chg.innerHTML = `<img src="assets/arrow-${x.dir}.svg" alt="" width="9" height="${x.dir === 'down' ? 10 : 11}"><span></span>`;
@@ -89,7 +89,15 @@ const resample = (a) => Array.from({ length: M }, (_, i) => {
   const pos = (i * (a.length - 1)) / (M - 1), k = Math.floor(pos), f = pos - k;
   return a[k] + ((a[Math.min(k + 1, a.length - 1)] - a[k]) * f);
 });
-let chartTween = null;
+let chartTween = null, introDone = false;
+function intro() {
+  if (introDone || reduce || !window.gsap || !cur) return;
+  introDone = true;
+  gsap.from('.hero > *', { y: 14, autoAlpha: 0, duration: 0.6, ease: 'power3.out', stagger: 0.09, clearProps: 'all' });
+  gsap.fromTo('#chart svg', { clipPath: 'inset(0 100% 0 0)' }, { clipPath: 'inset(0 0% 0 0)', duration: 1.1, delay: 0.25, ease: 'power2.inOut', clearProps: 'clipPath' });
+  gsap.from('.chart-block .range, .tabs', { autoAlpha: 0, y: 8, duration: 0.5, delay: 0.9, stagger: 0.08, clearProps: 'all' });
+  gsap.from('.row', { y: 18, autoAlpha: 0, duration: 0.55, delay: 0.5, ease: 'power3.out', stagger: 0.09, clearProps: 'all' });
+}
 
 function renderChart() {
   const pts = series();
@@ -125,6 +133,7 @@ function renderChart() {
       onUpdate: () => draw(a.map((y, i) => y + (b[i] - y) * o.p)),
       onComplete: () => { lineEl.setAttribute('d', line); areaEl.setAttribute('d', line + `L${W} ${H}L0 ${H}Z`); } });
   }
+  intro();
   $('lo').textContent = group(lo);
   $('hi').textContent = group(hi);
 }
@@ -137,6 +146,7 @@ function showTip(clientX) {
   const i = Math.round(rel * (cur.pts.length - 1));
   const x = (cur.xy[i][0] / cur.W) * box.width, y = (cur.xy[i][1] / cur.H) * box.height;
   const tip = $('chart').querySelector('.tip'), bub = tip.querySelector('.tip-bubble');
+  const wasHidden = tip.hidden;
   tip.hidden = false;
   tip.querySelector('.tip-line').style.left = x + 'px';
   const dot = tip.querySelector('.tip-dot'); dot.style.left = x + 'px'; dot.style.top = y + 'px';
@@ -145,6 +155,10 @@ function showTip(clientX) {
   const half = bub.offsetWidth / 2;
   bub.style.left = Math.min(box.width - half - 4, Math.max(half + 4, x)) + 'px';
   bub.style.top = Math.max(y - 20, 0) + 'px';
+  if (wasHidden && !reduce && window.gsap) {
+    gsap.fromTo(bub, { scale: 0.85, autoAlpha: 0, transformOrigin: '50% 100%' }, { scale: 1, autoAlpha: 1, duration: 0.22, ease: 'back.out(2)' });
+    gsap.fromTo(dot, { scale: 0.4 }, { scale: 1, duration: 0.25, ease: 'back.out(3)' });
+  }
 }
 const chartEl = $('chart');
 chartEl.addEventListener('pointerdown', (e) => { chartEl.setPointerCapture(e.pointerId); showTip(e.clientX); });

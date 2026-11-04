@@ -176,7 +176,7 @@ async function refresh() {
     localStorage.setItem('live', JSON.stringify(live));
     const st = (await store('state')) || {};
     if (!st.baseline) { st.baseline = live.gram18.p; st.lastAt = Date.now(); await store('state', st); }
-    if (reg) check(reg).catch(() => {}); // interval / threshold notifications while the app is open
+    if (reg && !cfg().workerUrl) check(reg).catch(() => {}); // interval / threshold notifications while the app is open
   } catch {
     $('status').textContent = 'اتصال برقرار نشد. آخرین قیمت ذخیره‌شده نمایش داده می‌شود.';
   }
@@ -220,7 +220,7 @@ async function save() {
 async function syncPeriodic() {
   // Background checks on installed Chrome/Android PWAs. iOS ignores this.
   try {
-    if (!reg || !('periodicSync' in reg)) return;
+    if (!reg || !('periodicSync' in reg) || cfg().workerUrl) return;
     if (settings.notif && (settings.intervalH > 0 || settings.alertOn)) {
       const h = settings.alertOn ? 1 : settings.intervalH;
       await reg.periodicSync.register('gold-check', { minInterval: h * 3600e3 });
@@ -237,6 +237,10 @@ function paintSettings() {
   $('alert-on').checked = settings.alertOn;
   $('pct-out').textContent = String(settings.pct).replace('.', '/');
   $('auto-on').checked = settings.auto;
+  $('quiet-on').checked = settings.quiet.on;
+  $('quiet-from').value = String(settings.quiet.from);
+  $('quiet-to').value = String(settings.quiet.to);
+  renderTargets();
   $('sheet').classList.toggle('no-notif', !settings.notif);
   $('notif-hint').textContent =
     !('Notification' in window) || (isIOS() && !isStandalone())
@@ -246,6 +250,22 @@ function paintSettings() {
         : 'بدون اعلان ابری، اعلان فقط وقتی برنامه باز یا تازه در پس‌زمینه است می‌آید.';
   if (!cfg().workerUrl) $('push-hint').textContent = 'سرور اعلان هنوز راه‌اندازی نشده است.';
   else if (!settings.notif) $('push-hint').textContent = 'اعلان را روشن کنید تا خودکار فعال شود.';
+}
+
+const toLatin = (v) => String(v).replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)).replace(/[٠-٩]/g, (d) => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[^\d]/g, '');
+
+function renderTargets() {
+  const ul = $('targets');
+  ul.innerHTML = '';
+  for (const t of settings.targets) {
+    const li = document.createElement('li');
+    const txt = document.createElement('span');
+    txt.textContent = (t.dir === 'above' ? 'بالاتر از ' : 'پایین‌تر از ') + group(t.price) + ' تومان';
+    const del = document.createElement('button');
+    del.type = 'button'; del.textContent = '×'; del.setAttribute('aria-label', 'حذف هدف');
+    del.onclick = () => { settings.targets = settings.targets.filter((x) => x.id !== t.id); save(); renderTargets(); };
+    li.append(txt, del); ul.append(li);
+  }
 }
 
 function openSheet(open) {
@@ -273,7 +293,12 @@ async function syncPush() {
     }
     sub = sub || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToU8(key) });
     const r = await fetch(workerUrl + '/sub', { method: 'POST', body: JSON.stringify({
-      sub: sub.toJSON(), s: { intervalH: settings.intervalH, alertOn: settings.alertOn, pct: settings.pct } }) });
+      sub: sub.toJSON(), s: { intervalH: settings.intervalH, alertOn: settings.alertOn, pct: settings.pct, quiet: settings.quiet, targets: settings.targets } }) });
+    if (r.ok) {
+      const { done = [] } = await r.clone().json().catch(() => ({}));
+      const hit = settings.targets.filter((t) => done.includes(t.id));
+      if (hit.length) { settings.targets = settings.targets.filter((t) => !done.includes(t.id)); await store('settings', settings); renderTargets(); }
+    }
     $('push-hint').textContent = r.ok ? 'فعال است. قیمت حتی وقتی برنامه بسته است می‌رسد.' : 'اتصال به سرور اعلان برقرار نشد.';
     return r.ok;
   } catch {
@@ -297,6 +322,19 @@ async function bindSettings() {
   $('interval').onchange = (e) => { settings.intervalH = +e.target.value; save(); };
   $('alert-on').onchange = (e) => { settings.alertOn = e.target.checked; save(); };
   $('auto-on').onchange = (e) => { settings.auto = e.target.checked; save(); };
+  for (const id of ['quiet-from', 'quiet-to']) {
+    for (let h = 0; h < 24; h++) $(id).add(new Option(String(h).padStart(2, '0') + ':00', String(h)));
+  }
+  $('quiet-on').onchange = (e) => { settings.quiet.on = e.target.checked; save(); };
+  $('quiet-from').onchange = (e) => { settings.quiet.from = +e.target.value; save(); };
+  $('quiet-to').onchange = (e) => { settings.quiet.to = +e.target.value; save(); };
+  $('t-add').onclick = () => {
+    const price = +toLatin($('t-price').value);
+    if (!price) { $('t-price').focus(); return; }
+    settings.targets.push({ id: Date.now().toString(36), price, dir: $('t-dir').value });
+    $('t-price').value = ''; save(); renderTargets();
+  };
+  $('t-price').onfocus = () => { if (!$('t-price').value && live) $('t-price').placeholder = group(Math.round(live.gram18.p / 1e5) * 1e5); };
   document.querySelectorAll('[data-step]').forEach((b) => b.onclick = () => {
     settings.pct = Math.min(20, Math.max(0.5, settings.pct + +b.dataset.step));
     $('pct-out').textContent = String(settings.pct).replace('.', '/'); save();
@@ -331,7 +369,7 @@ $('tabs').onclick = (e) => {
   movePill(true);
   renderChart();
 };
-document.addEventListener('visibilitychange', () => { schedule(); if (!document.hidden) refresh(); });
+document.addEventListener('visibilitychange', () => { schedule(); if (!document.hidden) { refresh(); syncPush(); } });
 
 (async () => {
   settings = await getSettings();

@@ -14,6 +14,13 @@ const FA = '۰۱۲۳۴۵۶۷۸۹';
 const fa = (s) => String(s).replace(/\d/g, (d) => FA[d]);
 const num = (s) => parseFloat(String(s).replace(/,/g, '')) || 0;
 const MAX_USERS = 5;
+// Iran has no daylight saving time any more: fixed UTC+3:30.
+const tehranHour = (t) => new Date(t + 3.5 * 3600e3).getUTCHours();
+const inQuiet = (q, t) => {
+  if (!q || !q.on) return false;
+  const h = tehranHour(t);
+  return q.from > q.to ? h >= q.from || h < q.to : h >= q.from && h < q.to;
+};
 
 async function idOf(endpoint) {
   const h = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(endpoint));
@@ -67,6 +74,23 @@ async function tick(env, event) {
   for (const [id, u] of Object.entries(users)) {
     const s = u.s || {};
     if (!u.baseline) { u.baseline = live.g18; u.lastAt = now; dirty = true; }
+    if (inQuiet(s.quiet, now)) continue; // quiet hours silence everything; conditions are re-checked afterwards
+    // one-shot target-price alerts
+    const left = [];
+    let targetSent = false;
+    for (const t of s.targets || []) {
+      const hit = t.dir === 'above' ? live.g18 >= t.price : live.g18 <= t.price;
+      if (!hit) { left.push(t); continue; }
+      const res = await push(env, u.sub, {
+        title: t.dir === 'above' ? 'قیمت به هدف رسید' : 'قیمت به هدف رسید', tag: 'gold-target-' + t.id,
+        body: `طلا ${t.dir === 'above' ? 'بالاتر از' : 'پایین‌تر از'} ${fa(Math.round(t.price).toLocaleString('en-US'))} تومان شد. ${lineOf(live)}`,
+      }).catch(() => null);
+      if (res && res.ok) { u.done = [...(u.done || []), t.id].slice(-50); targetSent = true; dirty = true; }
+      else if (res && (res.status === 404 || res.status === 410)) { delete users[id]; dirty = true; break; }
+      else left.push(t);
+    }
+    if (!users[id]) continue;
+    if (targetSent) { u.s.targets = left; u.baseline = live.g18; u.lastAt = now; continue; }
     let msg = null;
     if (s.alertOn) {
       const move = ((live.g18 - u.baseline) / u.baseline) * 100;
@@ -105,11 +129,17 @@ export default {
       const prev = users[id] || {};
       users[id] = {
         sub,
-        s: { intervalH: +s?.intervalH || 0, alertOn: !!s?.alertOn, pct: Math.min(20, Math.max(0.1, +s?.pct || 1)) },
-        baseline: prev.baseline, lastAt: prev.lastAt || Date.now(),
+        s: {
+          intervalH: +s?.intervalH || 0, alertOn: !!s?.alertOn, pct: Math.min(20, Math.max(0.1, +s?.pct || 1)),
+          quiet: { on: !!s?.quiet?.on, from: Math.min(23, Math.max(0, +s?.quiet?.from || 0)), to: Math.min(23, Math.max(0, +s?.quiet?.to || 0)) },
+          targets: (Array.isArray(s?.targets) ? s.targets : []).slice(0, 10)
+            .map((t) => ({ id: String(t.id).slice(0, 24), price: +t.price, dir: t.dir === 'below' ? 'below' : 'above' }))
+            .filter((t) => t.price > 0 && !(prev.done || []).includes(t.id)),
+        },
+        baseline: prev.baseline, lastAt: prev.lastAt || Date.now(), done: prev.done || [],
       };
       await env.KV.put('users', JSON.stringify(users));
-      return json({ ok: true });
+      return json({ ok: true, done: users[id].done });
     }
 
     if (req.method === 'POST' && url.pathname === '/unsub') {

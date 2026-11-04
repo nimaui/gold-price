@@ -115,6 +115,34 @@
     <p class="hint">مقایسه با قیمت آخرین اعلان یا آخرین بازشدن برنامه.</p>
   </div>
 
+  <div class="field" data-needs="notif">
+    <div class="field-head">
+      <span>هشدار قیمت هدف</span>
+    </div>
+    <div class="target-row">
+      <select id="t-dir" aria-label="جهت">
+        <option value="above">بالاتر از</option>
+        <option value="below">پایین‌تر از</option>
+      </select>
+      <input id="t-price" inputmode="numeric" autocomplete="off" placeholder="قیمت به تومان" aria-label="قیمت هدف">
+      <button type="button" class="add" id="t-add">افزودن</button>
+    </div>
+    <ul class="targets" id="targets"></ul>
+    <p class="hint">وقتی قیمت به هدف رسید، یک بار خبر می‌دهم و هدف حذف می‌شود.</p>
+  </div>
+
+  <div class="field" data-needs="notif">
+    <div class="field-head">
+      <span>ساعت سکوت</span>
+      <label class="switch"><input type="checkbox" id="quiet-on"><span></span></label>
+    </div>
+    <div class="quiet-row">
+      <span>از</span><select id="quiet-from" aria-label="شروع سکوت"></select>
+      <span>تا</span><select id="quiet-to" aria-label="پایان سکوت"></select>
+    </div>
+    <p class="hint">در این ساعت‌ها هیچ اعلانی نمی‌آید. هشدارها بعد از پایان سکوت، اگر هنوز برقرار باشند، ارسال می‌شوند. ساعت به وقت تهران است.</p>
+  </div>
+
   <div class="field">
     <div class="field-head">
       <span>به‌روزرسانی خودکار هنگام باز بودن</span>

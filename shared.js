@@ -3,7 +3,7 @@
   const LIVE = 'https://call4.tgju.org/ajax.json';
   const HIST = 'https://api.tgju.org/v1/market/indicator/summary-table-data/';
   const SYMBOL = { gram18: 'tgju_gold_irg18', ons: 'ons', sekee: 'sekee', usd: 'price_dollar_rl' };
-  const DEFAULTS = { notif: false, intervalH: 0, alertOn: false, pct: 1, auto: true };
+  const DEFAULTS = { notif: false, intervalH: 0, alertOn: false, pct: 1, auto: true, quiet: { on: false, from: 23, to: 8 }, targets: [] };
 
   const num = (s) => parseFloat(String(s).replace(/,/g, '')) || 0;
   const FA = '۰۱۲۳۴۵۶۷۸۹';

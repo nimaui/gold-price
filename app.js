@@ -110,11 +110,11 @@ async function refresh() {
 
 async function loadHistory() {
   try {
-    const cached = JSON.parse(localStorage.getItem('hist2') || 'null');
+    const cached = JSON.parse(localStorage.getItem('hist3') || 'null');
     if (cached) { hist = cached.v; renderChart(); }
     if (!cached || Date.now() - cached.t > 6 * 3600e3) {
       hist = await fetchHistory('gram18');
-      localStorage.setItem('hist2', JSON.stringify({ t: Date.now(), v: hist }));
+      localStorage.setItem('hist3', JSON.stringify({ t: Date.now(), v: hist }));
       renderChart();
     }
   } catch { /* chart keeps cached data */ }

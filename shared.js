@@ -2,7 +2,7 @@
 (function (g) {
   const LIVE = 'https://call4.tgju.org/ajax.json';
   const HIST = 'https://api.tgju.org/v1/market/indicator/summary-table-data/';
-  const SYMBOL = { gram18: 'geram18', ons: 'ons', sekee: 'sekee', usd: 'price_dollar_rl' };
+  const SYMBOL = { gram18: 'tgju_gold_irg18', ons: 'ons', sekee: 'sekee', usd: 'price_dollar_rl' };
   const DEFAULTS = { notif: false, intervalH: 0, alertOn: false, pct: 1, auto: true };
 
   const num = (s) => parseFloat(String(s).replace(/,/g, '')) || 0;
@@ -33,7 +33,7 @@
       const dp = Math.abs(Number(x.dp) || 0);
       return { p: num(x.p) / div, dp, dir: x.dt === 'low' ? 'down' : 'up', t: x.ts };
     };
-    return { gram18: pick('geram18', 10), ons: pick('ons', 1), sekee: pick('sekee', 10), usd: pick('price_dollar_rl', 10) };
+    return { gram18: pick('tgju_gold_irg18', 10), ons: pick('ons', 1), sekee: pick('sekee', 10), usd: pick('price_dollar_rl', 10) };
   }
 
   async function fetchHistory(key) {

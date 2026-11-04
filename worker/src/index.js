@@ -25,9 +25,9 @@ async function getLive() {
   if (!r.ok) throw new Error('price api ' + r.status);
   const c = (await r.json()).current;
   return {
-    g18: num(c.geram18.p) / 10,
-    dp: Math.abs(Number(c.geram18.dp) || 0),
-    sign: c.geram18.dt === 'low' ? '−' : '+',
+    g18: num(c.tgju_gold_irg18.p) / 10,
+    dp: Math.abs(Number(c.tgju_gold_irg18.dp) || 0),
+    sign: c.tgju_gold_irg18.dt === 'low' ? '−' : '+',
     ons: num(c.ons.p), sekee: num(c.sekee.p) / 10, usd: num(c.price_dollar_rl.p) / 10,
   };
 }

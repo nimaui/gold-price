@@ -1,6 +1,6 @@
 importScripts('shared.js');
 
-const VERSION = 'gold-v5';
+const VERSION = 'gold-v6';
 const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'shared.js', 'manifest.webmanifest',
   'fonts/IRANSansXFaNum-Regular.woff2', 'fonts/IRANSansXFaNum-Medium.woff2',
   'assets/trend-up.svg', 'assets/arrow-up.svg', 'assets/arrow-down.svg', 'icons/icon-192.png'];
@@ -14,11 +14,15 @@ self.addEventListener('activate', (e) => {
       .then(() => self.clients.claim()));
 });
 
-// App shell: cache first. Price APIs are never cached here.
+// App shell. Price APIs are never cached here.
 self.addEventListener('fetch', (e) => {
   const u = new URL(e.request.url);
   if (e.request.method !== 'GET' || u.origin !== location.origin || u.pathname.includes('/__')) return;
-  e.respondWith(caches.match(e.request).then((hit) => hit || fetch(e.request)));
+  // Network first so updates show on the very next open; cache only when offline.
+  e.respondWith(fetch(e.request).then((res) => {
+    if (res.ok) { const copy = res.clone(); caches.open(VERSION).then((c) => c.put(e.request, copy)); }
+    return res;
+  }).catch(() => caches.match(e.request)));
 });
 
 // Chrome/Android installed PWAs only; the browser decides the real timing.

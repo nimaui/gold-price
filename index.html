@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="قیمت طلا">
+<title>قیمت طلا</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preload" href="fonts/IRANSansXFaNum-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="screen">
+  <button class="gear" id="open-settings" aria-label="تنظیمات">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+  </button>
+
+  <section class="hero">
+    <p class="hero-label">هر گرم طلا ۱۸ عیار</p>
+    <div class="hero-price"><span class="num" id="price">—</span><span class="unit">تومان</span></div>
+    <div class="hero-change" id="hero-change">
+      <span class="cap">تغییرات روزانه</span>
+      <span class="trend" id="hero-trend"></span>
+      <span class="pct" id="hero-pct">—</span>
+    </div>
+  </section>
+
+  <section class="chart-block">
+    <div class="chart" id="chart" aria-hidden="true"></div>
+    <div class="range">
+      <span class="range-item"><span class="v" id="lo">—</span><span class="l">کمترین</span></span>
+      <span class="sep"></span>
+      <span class="range-item"><span class="v" id="hi">—</span><span class="l">بیشترین</span></span>
+    </div>
+    <div class="tabs" role="tablist" id="tabs">
+      <button role="tab" data-range="day" aria-selected="true">روزانه</button>
+      <button role="tab" data-range="week" aria-selected="false">هفتگی</button>
+      <button role="tab" data-range="month" aria-selected="false">ماهانه</button>
+      <button role="tab" data-range="year" aria-selected="false">سالانه</button>
+    </div>
+  </section>
+
+  <section class="list" id="list">
+    <div class="row" data-key="ons">
+      <span class="name">انس جهانی طلا</span>
+      <span class="val"><b>—</b><i>دلار</i></span>
+      <span class="chg"></span>
+    </div>
+    <div class="row" data-key="sekee">
+      <span class="name">سکه امامی</span>
+      <span class="val"><b>—</b><i>تومانء</i></span>
+      <span class="chg"></span>
+    </div>
+    <div class="row" data-key="usd">
+      <span class="name">دلار</span>
+      <span class="val"><b>—</b><i>تومانء</i></span>
+      <span class="chg"></span>
+    </div>
+  </section>
+  <p class="status" id="status" role="status"></p>
+</main>
+
+<div class="scrim" id="scrim" hidden></div>
+<aside class="sheet" id="sheet" aria-hidden="true" aria-labelledby="sheet-title">
+  <div class="grab"></div>
+  <h2 id="sheet-title">تنظیمات</h2>
+
+  <div class="field">
+    <div class="field-head">
+      <span>اعلان قیمت</span>
+      <label class="switch"><input type="checkbox" id="notif-on"><span></span></label>
+    </div>
+    <p class="hint" id="notif-hint"></p>
+  </div>
+
+  <div class="field" id="push-field" data-needs="notif">
+    <div class="field-head"><span>اعلان وقتی برنامه بسته است</span></div>
+    <p class="hint" id="push-hint"></p>
+  </div>
+
+  <div class="field" data-needs="notif">
+    <label for="interval">هر چند ساعت یک‌بار قیمت را اعلام کن</label>
+    <select id="interval">
+      <option value="0">خاموش</option>
+      <option value="1">هر ۱ ساعت</option>
+      <option value="2">هر ۲ ساعت</option>
+      <option value="3">هر ۳ ساعت</option>
+      <option value="6">هر ۶ ساعت</option>
+      <option value="12">هر ۱۲ ساعت</option>
+      <option value="24">هر ۲۴ ساعت</option>
+    </select>
+  </div>
+
+  <div class="field" data-needs="notif">
+    <div class="field-head">
+      <span>هشدار تغییر ناگهانی</span>
+      <label class="switch"><input type="checkbox" id="alert-on"><span></span></label>
+    </div>
+    <div class="stepper-row">
+      <span>اگر قیمت</span>
+      <div class="stepper">
+        <button type="button" data-step="-0.5" aria-label="کمتر">−</button>
+        <output id="pct-out">۱</output>
+        <button type="button" data-step="0.5" aria-label="بیشتر">+</button>
+      </div>
+      <span>درصد بالا یا پایین رفت، فوری بگو</span>
+    </div>
+    <p class="hint">مقایسه با قیمت آخرین اعلان یا آخرین بازشدن برنامه.</p>
+  </div>
+
+  <div class="field">
+    <div class="field-head">
+      <span>به‌روزرسانی خودکار هنگام باز بودن</span>
+      <label class="switch"><input type="checkbox" id="auto-on"><span></span></label>
+    </div>
+    <p class="hint">هر ۲ دقیقه، فقط وقتی برنامه روی صفحه است. برای مصرف کمتر باتری خاموش کنید.</p>
+  </div>
+
+  <button class="btn" id="test-notif" type="button" data-needs="notif">ارسال اعلان آزمایشی</button>
+  <button class="btn ghost" id="close-settings" type="button">بستن</button>
+</aside>
+
+<script src="config.js"></script>
+<script src="shared.js"></script>
+<script src="app.js" type="module"></script>
+</body>
+</html>

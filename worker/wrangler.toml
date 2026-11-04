@@ -1,0 +1,14 @@
+name = "gold-push"
+main = "src/index.js"
+compatibility_date = "2025-01-01"
+
+[triggers]
+crons = ["* * * * *"]
+
+# KV namespace id is filled in by setup.sh
+[[kv_namespaces]]
+binding = "KV"
+id = "ca66843f3bd748bd9674e5d1e2ef6f6f"
+
+[vars]
+VAPID_SUBJECT = "https://example.com"

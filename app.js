@@ -1,15 +1,12 @@
 const { fetchLive, fetchHistory, check, store, getSettings, fa, group } = Gold;
 const $ = (id) => document.getElementById(id);
 
-const RANGES = { day: [30, 1], week: [12, 7], month: [12, 30], year: [60, 30] }; // [points, step in days]
 let live = null, hist = null, samples = null, range = 'day', settings = null, reg = null, timer = null, cur = null;
 
 /* ---------- rendering ---------- */
 function renderLive() {
   const g = live.gram18;
   $('price').textContent = group(g.p);
-  $('hero-pct').textContent = g.dp.toFixed(2) + '%';
-  $('hero-change').classList.toggle('down', g.dir === 'down');
   for (const key of ['ons', 'sekee', 'usd']) {
     const row = document.querySelector(`.row[data-key=${key}]`), x = live[key];
     row.querySelector('b').textContent = group(x.p);
@@ -18,6 +15,7 @@ function renderLive() {
     chg.innerHTML = `<img src="assets/arrow-${x.dir}.svg" alt="" width="9" height="${x.dir === 'down' ? 10 : 11}"><span></span>`;
     chg.lastChild.textContent = x.dp.toFixed(2).replace('.', '/') + '%';
   }
+  renderHero(series());
   // Iranian prices only move while the market is open; say so instead of looking frozen.
   const ts = String(g.t || '');
   const closed = ts.endsWith('00:00:00');
@@ -29,26 +27,57 @@ function renderLive() {
 const hhmm = (ts) => new Date(ts).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 const dayLabel = (ts) => new Date(ts).toLocaleDateString('fa-IR', { month: 'long', day: 'numeric' });
 
+// Same structure as the reference app: every tab shows its own period, and the
+// hero change is (now - first point of the period) / first point.
+const SPAN = { day: 864e5, week: 7 * 864e5, month: 30 * 864e5 };
+const CAPTION = { day: 'تغییرات روزانه', week: 'تغییرات هفتگی', month: 'تغییرات ماهانه', year: 'تغییرات سالانه' };
+let source = 'daily';
+
+function fromSamples() {
+  if (range === 'year' || !samples) return null;
+  const src = (range === 'day' ? samples.m5 : samples.h1) || [];
+  const rec = src.filter((s) => s[0] > Date.now() - SPAN[range]);
+  const covered = rec.length > 1 && Date.now() - rec[0][0] >= SPAN[range] * 0.85;
+  if (!covered) return null;
+  const keep = range === 'day' ? 96 : range === 'week' ? 84 : 120;
+  const st = Math.max(1, Math.ceil(rec.length / keep));
+  const out = [];
+  rec.forEach((s, i) => (i % st === 0 || i === rec.length - 1) &&
+    out.push({ v: s[1], label: (range === 'day' ? '' : dayLabel(s[0]) + ' ') + hhmm(s[0]) }));
+  return out;
+}
+
 // [{v: price, label: text shown in the tooltip}], oldest first
 function series() {
+  const s = fromSamples();
+  if (s) { source = 'samples'; return s; }
+  source = 'daily';
   const out = [];
-  const dayFromSamples = range === 'day' && samples && samples.filter((s) => s[0] > Date.now() - 864e5).length >= 8;
-  if (dayFromSamples) {
-    const rec = samples.filter((s) => s[0] > Date.now() - 864e5);
-    const stepN = Math.max(1, Math.ceil(rec.length / 120));
-    rec.forEach((s, i) => (i % stepN === 0 || i === rec.length - 1) && out.push({ v: s[1], label: hhmm(s[0]) }));
-  } else if (hist) {
-    const [n, step] = RANGES[range];
-    for (let i = 0; i < n && i * step < hist.length; i++) out.push({ v: hist[i * step][0], label: hist[i * step][1] });
+  if (hist) {
+    const days = { day: 30, week: 7, month: 30, year: 365 }[range];
+    for (let i = 0; i < days && i < hist.length; i++) out.push({ v: hist[i][0], label: hist[i][1] });
     out.reverse();
     if (live) out.push({ v: live.gram18.p, label: 'اکنون' });
   }
   return out;
 }
 
+function renderHero(pts) {
+  const g = live && live.gram18; if (!g) return;
+  let pct = g.dp, down = g.dir === 'down';
+  if (!(range === 'day' && source === 'daily') && pts.length > 1) {
+    const d = ((g.p - pts[0].v) / pts[0].v) * 100;
+    pct = Math.abs(d); down = d < 0;
+  }
+  $('hero-pct').textContent = pct.toFixed(2) + '%';
+  $('hero-change').classList.toggle('down', down);
+  document.querySelector('#hero-change .cap').textContent = CAPTION[range];
+}
+
 function renderChart() {
   const pts = series();
   if (pts.length < 2) return;
+  renderHero(pts);
   const W = 434, H = 134, top = 45, bot = H - 5;
   const vs = pts.map((p) => p.v), lo = Math.min(...vs), hi = Math.max(...vs), span = hi - lo || 1;
   const xy = vs.map((v, i) => [(i / (pts.length - 1)) * W, bot - ((v - lo) / span) * (bot - top)]);
@@ -129,7 +158,7 @@ async function loadSamples() {
   const u = samplesUrl(); if (!u) return;
   try {
     const r = await fetch(u, { cache: 'no-cache' });
-    if (r.ok) { samples = await r.json(); renderChart(); }
+    if (r.ok) { const j = await r.json(); samples = j && j.m5 ? j : null; renderChart(); }
   } catch { /* falls back to daily closes */ }
 }
 

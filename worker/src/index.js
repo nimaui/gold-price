@@ -48,11 +48,18 @@ async function tick(env, event) {
   const live = await getLive();
   const now = Date.now();
 
-  // intraday samples for the app's "day" chart, every 5 minutes
-  if (new Date(event.scheduledTime).getUTCMinutes() % 5 === 0) {
-    const old = JSON.parse((await env.KV.get('samples')) || '[]').filter((s) => s[0] > now - 72 * 3600e3);
-    old.push([now, live.g18, live.ons, live.sekee, live.usd]);
-    await env.KV.put('samples', JSON.stringify(old));
+  // price history for the app's charts: every 5 min for 2 days, hourly for 60 days
+  const row = [now, live.g18, live.ons, live.sekee, live.usd];
+  const min = new Date(event.scheduledTime).getUTCMinutes();
+  if (min % 5 === 0) {
+    const m5 = JSON.parse((await env.KV.get('m5')) || '[]').filter((x) => x[0] > now - 48 * 3600e3);
+    m5.push(row);
+    await env.KV.put('m5', JSON.stringify(m5));
+  }
+  if (min === 0 || !(await env.KV.get('h1'))) {
+    const h1 = JSON.parse((await env.KV.get('h1')) || '[]').filter((x) => x[0] > now - 60 * 864e5);
+    h1.push(row);
+    await env.KV.put('h1', JSON.stringify(h1));
   }
 
   const users = JSON.parse((await env.KV.get('users')) || '{}');
@@ -83,7 +90,8 @@ export default {
     if (req.method === 'OPTIONS') return new Response(null, { headers: CORS });
 
     if (url.pathname === '/samples') {
-      return new Response((await env.KV.get('samples')) || '[]', {
+      const [m5, h1] = await Promise.all([env.KV.get('m5'), env.KV.get('h1')]);
+      return new Response(`{"m5":${m5 || '[]'},"h1":${h1 || '[]'}}`, {
         headers: { ...CORS, 'content-type': 'application/json', 'cache-control': 'public, max-age=60' },
       });
     }

@@ -4,9 +4,19 @@ const $ = (id) => document.getElementById(id);
 let live = null, hist = null, samples = null, range = 'day', settings = null, reg = null, timer = null, cur = null;
 
 /* ---------- rendering ---------- */
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let shown = {};
+function countTo(el, key, to) {
+  const from = shown[key]; shown[key] = to;
+  if (reduce || !window.gsap || from == null || from === to) { el.textContent = group(to); return; }
+  const o = { v: from };
+  gsap.killTweensOf(o);
+  gsap.to(o, { v: to, duration: 0.8, ease: 'power2.out', onUpdate: () => (el.textContent = group(Math.round(o.v))) });
+}
+
 function renderLive() {
   const g = live.gram18;
-  $('price').textContent = group(g.p);
+  countTo($('price'), 'g18', g.p);
   for (const key of ['ons', 'sekee', 'usd']) {
     const row = document.querySelector(`.row[data-key=${key}]`), x = live[key];
     row.querySelector('b').textContent = group(x.p);
@@ -74,12 +84,20 @@ function renderHero(pts) {
   document.querySelector('#hero-change .cap').textContent = CAPTION[range];
 }
 
+const M = 80;
+const resample = (a) => Array.from({ length: M }, (_, i) => {
+  const pos = (i * (a.length - 1)) / (M - 1), k = Math.floor(pos), f = pos - k;
+  return a[k] + ((a[Math.min(k + 1, a.length - 1)] - a[k]) * f);
+});
+let chartTween = null;
+
 function renderChart() {
   const pts = series();
   if (pts.length < 2) return;
   renderHero(pts);
   const W = 434, H = 134, top = 45, bot = H - 5;
   const vs = pts.map((p) => p.v), lo = Math.min(...vs), hi = Math.max(...vs), span = hi - lo || 1;
+  const prevYs = cur && cur.ys;
   const xy = vs.map((v, i) => [(i / (pts.length - 1)) * W, bot - ((v - lo) / span) * (bot - top)]);
   const line = xy.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join('');
   $('chart').innerHTML =
@@ -93,7 +111,20 @@ function renderChart() {
       <div class="tip-line"></div><div class="tip-dot"></div>
       <div class="tip-bubble"><b></b><span></span></div>
     </div>`;
-  cur = { pts, xy, W, H };
+  cur = { pts, xy, W, H, ys: xy.map((p) => p[1]) };
+  if (chartTween) chartTween.kill();
+  if (!reduce && window.gsap && prevYs) {
+    const [areaEl, lineEl] = $('chart').querySelectorAll('svg path');
+    const a = resample(prevYs), b = resample(cur.ys), o = { p: 0 };
+    const draw = (ys) => {
+      const d = ys.map((y, i) => (i ? 'L' : 'M') + ((i / (M - 1)) * W).toFixed(1) + ' ' + y.toFixed(1)).join('');
+      lineEl.setAttribute('d', d); areaEl.setAttribute('d', d + `L${W} ${H}L0 ${H}Z`);
+    };
+    draw(a);
+    chartTween = gsap.to(o, { p: 1, duration: 0.7, ease: 'power3.out',
+      onUpdate: () => draw(a.map((y, i) => y + (b[i] - y) * o.p)),
+      onComplete: () => { lineEl.setAttribute('d', line); areaEl.setAttribute('d', line + `L${W} ${H}L0 ${H}Z`); } });
+  }
   $('lo').textContent = group(lo);
   $('hi').textContent = group(hi);
 }
@@ -269,10 +300,21 @@ async function bindSettings() {
 }
 
 /* ---------- boot ---------- */
+function movePill(animate) {
+  const b = document.querySelector('#tabs button[aria-selected=true]'), pill = $('pill');
+  if (!b) return;
+  const to = { x: b.offsetLeft, y: b.offsetTop, width: b.offsetWidth };
+  if (animate && !reduce && window.gsap) gsap.to(pill, { ...to, duration: 0.3, ease: 'power2.out' });
+  else (window.gsap ? gsap.set(pill, to) : Object.assign(pill.style, { left: to.x + 'px', top: to.y + 'px', width: to.width + 'px' }));
+}
+addEventListener('resize', () => movePill(false));
+document.fonts && document.fonts.ready.then(() => movePill(false));
+
 $('tabs').onclick = (e) => {
   const b = e.target.closest('button'); if (!b) return;
   range = b.dataset.range;
   document.querySelectorAll('#tabs button').forEach((x) => x.setAttribute('aria-selected', String(x === b)));
+  movePill(true);
   renderChart();
 };
 document.addEventListener('visibilitychange', () => { schedule(); if (!document.hidden) refresh(); });
@@ -285,5 +327,5 @@ document.addEventListener('visibilitychange', () => { schedule(); if (!document.
     try { reg = await navigator.serviceWorker.register('sw.js'); await navigator.serviceWorker.ready; } catch {}
   }
   await Promise.all([refresh(), loadHistory(), loadSamples()]);
-  syncPeriodic(); schedule(); syncPush();
+  syncPeriodic(); schedule(); syncPush(); movePill(false);
 })();

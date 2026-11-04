@@ -44,7 +44,10 @@ button,select{font:inherit;color:inherit;background:none;border:0;cursor:pointer
 .sep{align-self:stretch;width:1px;background:var(--line)}
 .tabs{height:40px;display:flex;align-items:center;justify-content:center;gap:8px;padding:12px 24px 4px}
 .tabs button{height:24px;padding:0 11px;border-radius:16px;font-size:10px;line-height:16px;color:var(--ink-3);min-width:46px}
-.tabs button[aria-selected=true]{background:var(--chip);color:var(--ink);padding:0 12px}
+.tabs{position:relative}
+.tabs .pill{position:absolute;left:0;top:0;height:24px;width:0;border-radius:16px;background:var(--chip)}
+.tabs button{position:relative;z-index:1}
+.tabs button[aria-selected=true]{color:var(--ink);padding:0 12px}
 
 .list{display:flex;flex-direction:column;gap:16px;padding:48px 20px 12px}
 .row{display:flex;align-items:center;gap:12px;padding:16px;border-radius:16px;direction:ltr}
